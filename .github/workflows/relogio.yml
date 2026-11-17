@@ -1,0 +1,31 @@
+name: relogio
+run-name: relogio ${{ inputs.cadeia }} ${{ inputs.espera }} ${{ inputs.alvo }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cadeia: {description: 'Corrente (A dispara no alvo, B confere e cobre)', required: true, default: 'A'}
+      espera: {description: 'Ambiente de espera (espera-N minutos)', required: true, default: 'espera-1'}
+      alvo: {description: 'Alvo em UTC, AAAA-MM-DDTHH:MM (vazio = descobrir)', required: false, default: ''}
+      motivo: {description: 'inicio (corrente nova) ou elo', required: false, default: 'inicio'}
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  elo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ inputs.espera }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Espera, dispara e agenda o proximo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CADEIA: ${{ inputs.cadeia }}
+          ALVO: ${{ inputs.alvo }}
+          MOTIVO: ${{ inputs.motivo }}
+          CHAVE_DISPARO: ${{ secrets.CHAVE_DISPARO }}
+          DESTINO: ${{ secrets.DESTINO }}
+        run: python3 relogio.py

@@ -1,0 +1,37 @@
+name: guarda
+
+# Religa a corrente do relogio se ela tiver parado. O agendador do GitHub atrasa, mas chega; como a guarda
+# so precisa passar de vez em quando, o atraso nao importa. Tambem tira corrente duplicada.
+on:
+  schedule:
+    - cron: '17 1,4,7,10,13,16,19,22 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  confere:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Confere as duas correntes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run list --workflow relogio.yml -L 60 --json databaseId,status,displayTitle,createdAt > r.json
+          python3 - <<'PY'
+          import json, subprocess
+          R = [r for r in json.load(open('r.json')) if r['status'] in ('queued', 'in_progress', 'waiting', 'pending', 'requested')]
+          for c in ('A', 'B'):
+              meus = sorted([r for r in R if r['displayTitle'].startswith(f'relogio {c} ')], key=lambda r: r['createdAt'])
+              esperando = [r for r in meus if r['status'] == 'waiting']
+              print(f'corrente {c}: {len(meus)} rodada(s) viva(s), {len(esperando)} em espera')
+              if not meus:
+                  print(f'  corrente {c} parada: religando')
+                  subprocess.run(['gh', 'workflow', 'run', 'relogio.yml', '-f', f'cadeia={c}', '-f', 'espera=espera-1', '-f', 'motivo=inicio'], check=True)
+              for r in esperando[:-1]:
+                  print(f"  duplicada em espera: cancelando {r['databaseId']}")
+                  subprocess.run(['gh', 'run', 'cancel', str(r['databaseId'])])
+          PY
