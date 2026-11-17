@@ -119,7 +119,7 @@ def registra(linha):
         if subprocess.run(c, capture_output=True, text=True).returncode != 0: diz('  registro nao gravado'); return
 
 def main():
-    n = agora(); falhou = False
+    n = agora(); falhou = False; atraso = 0
     alvo = dt.datetime.fromisoformat(ALVO_IN).replace(tzinfo=UTC) if ALVO_IN else None
     diz(f'elo iniciado: motivo {MOTIVO}, alvo recebido {alvo:%d/%m %H:%MZ}' if alvo else f'elo iniciado: motivo {MOTIVO}, sem alvo')
     if MOTIVO == 'inicio' or alvo is None:
@@ -131,6 +131,7 @@ def main():
     if falta > PERTO:                       # ainda longe: mais um elo de espera para o mesmo alvo
         agenda(alvo); return 0
     if falta < -1:                          # o elo acordou depois do alvo: dispara atrasado, agora
+        atraso = -falta
         diz(f'  ATRASADO {-falta:.0f} min em relacao ao alvo')
     else:
         dorme_ate(alvo + dt.timedelta(seconds=ATRASO))
@@ -144,7 +145,10 @@ def main():
     for volta in (1, 2):
         dorme_ate(agora() + dt.timedelta(minutes=5))
         if SIMULA or publicado(alvo):
-            registra(f'{agora():%Y-%m-%dT%H:%M:%SZ} alvo {alvo:%Y-%m-%dT%H:%M}Z publicado (conferencia {volta})'); return 0
+            registra(f'{agora():%Y-%m-%dT%H:%M:%SZ} alvo {alvo:%Y-%m-%dT%H:%M}Z publicado (conferencia {volta})' + (f', DISPARO ATRASADO {atraso:.0f} min' if atraso else ''))
+            if atraso > 3 and not SIMULA:      # publicou, mas fora da hora: a rodada falha de proposito para o GitHub avisar por e-mail
+                diz(f'::error::O painel foi publicado, mas o disparo saiu {atraso:.0f} min depois do alvo. Conferir as esperas do relogio.'); return 1
+            return 0
         diz(f'  conferencia {volta}: o painel ainda nao tem versao do alvo; empurrando de novo')
         empurra(f'repeticao do alvo {alvo:%d/%m %H:%M}Z, corrente {CADEIA}')
     dorme_ate(agora() + dt.timedelta(minutes=5))

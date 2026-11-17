@@ -1,0 +1,17 @@
+name: mede-espera
+run-name: mede-espera ${{ inputs.espera }} pedido ${{ inputs.pedido }}
+
+# Mede quanto a regra de espera do ambiente demora de verdade. So para conferencia; nao dispara nada.
+on:
+  workflow_dispatch:
+    inputs:
+      espera: {description: 'Ambiente de espera', required: true, default: 'espera-10'}
+      pedido: {description: 'Hora do pedido em UTC (HH:MM:SS)', required: false, default: ''}
+
+jobs:
+  mede:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: ${{ inputs.espera }}
+    steps:
+      - run: echo "pedido ${{ inputs.pedido }} | ${{ inputs.espera }} | comecou $(date -u +%H:%M:%S)"
