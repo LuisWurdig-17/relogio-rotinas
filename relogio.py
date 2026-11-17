@@ -82,11 +82,22 @@ def agenda(alvo, motivo='elo'):
     return ok
 
 def versao_no_ar():
-    try:
-        with urllib.request.urlopen(VERSAO + '?' + str(int(time.time())), timeout=30) as r:
-            return dt.datetime.strptime(r.read().decode().strip()[:14], '%Y%m%d%H%M%S')
-    except Exception as e:
-        diz(f'  nao li a versao no ar: {str(e)[:80]}'); return None
+    """Le o carimbo do painel no ar. Primeiro com curl (o mesmo caminho do vigia antigo), depois com a biblioteca."""
+    url = VERSAO + '?' + str(int(time.time()))
+    erro = ''
+    for t in range(3):
+        try:
+            r = subprocess.run(['curl', '-s', '-f', '-m', '20', url], capture_output=True, text=True)
+            num = ''.join(c for c in r.stdout if c.isdigit())[:14]
+            if r.returncode == 0 and len(num) == 14: return dt.datetime.strptime(num, '%Y%m%d%H%M%S')
+            erro = f'curl codigo {r.returncode}'
+        except Exception as e: erro = str(e)[:80]
+        try:
+            with urllib.request.urlopen(url, timeout=15) as r:
+                return dt.datetime.strptime(r.read().decode().strip()[:14], '%Y%m%d%H%M%S')
+        except Exception as e: erro += ' | ' + str(e)[:80]
+        if not SIMULA: time.sleep(5)
+    diz(f'  nao li a versao no ar: {erro}'); return None
 def publicado(alvo):
     v = versao_no_ar()
     return v is not None and v >= (alvo - dt.timedelta(hours=3)).replace(tzinfo=None)     # carimbo em hora de Brasilia
@@ -124,7 +135,8 @@ def main():
     else:
         dorme_ate(alvo + dt.timedelta(seconds=ATRASO))
     if CADEIA == 'A' or not publicado(alvo):
-        if not empurra(f'alvo {alvo:%d/%m %H:%M}Z, corrente {CADEIA}, {agora():%H:%M:%S}Z'): falhou = True
+        prefixo = 'forcar ensaio do ' if MOTIVO == 'ensaio' else ''      # ensaio: a rotina publica mesmo sem precisar
+        if not empurra(f'{prefixo}alvo {alvo:%d/%m %H:%M}Z, corrente {CADEIA}, {agora():%H:%M:%S}Z'): falhou = True
     else:
         diz('  a outra corrente ja publicou; nada a empurrar')
     agenda(proximo(max(alvo, agora())))     # o elo seguinte fica garantido antes da conferencia

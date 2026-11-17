@@ -7,7 +7,7 @@ on:
       cadeia: {description: 'Corrente (A dispara no alvo, B confere e cobre)', required: true, default: 'A'}
       espera: {description: 'Ambiente de espera (espera-N minutos)', required: true, default: 'espera-1'}
       alvo: {description: 'Alvo em UTC, AAAA-MM-DDTHH:MM (vazio = descobrir)', required: false, default: ''}
-      motivo: {description: 'inicio (corrente nova) ou elo', required: false, default: 'inicio'}
+      motivo: {description: 'inicio (corrente nova), elo ou ensaio (publica de verdade no alvo informado)', required: false, default: 'inicio'}
 
 permissions:
   actions: write
@@ -20,6 +20,7 @@ jobs:
     environment: ${{ inputs.espera }}
     steps:
       - uses: actions/checkout@v4
+        with: {ref: main}        # sempre o codigo mais novo, nao o do momento em que o elo foi agendado
       - name: Espera, dispara e agenda o proximo
         env:
           GH_TOKEN: ${{ github.token }}
