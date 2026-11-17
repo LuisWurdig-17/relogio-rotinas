@@ -12,6 +12,7 @@ on:
 permissions:
   actions: write
   contents: write
+  issues: write        # para abrir o chamado que avisa por e-mail quando algo falha
 
 jobs:
   elo:

@@ -9,6 +9,7 @@ on:
 
 permissions:
   actions: write
+  issues: write
 
 jobs:
   confere:
@@ -31,6 +32,8 @@ jobs:
               if not meus:
                   print(f'  corrente {c} parada: religando')
                   subprocess.run(['gh', 'workflow', 'run', 'relogio.yml', '-f', f'cadeia={c}', '-f', 'espera=espera-1', '-f', 'motivo=inicio'], check=True)
+                  subprocess.run(['gh', 'issue', 'create', '--title', f'Corrente {c} do relogio estava parada e foi religada',
+                                  '--body', 'A guarda religou a corrente. Conferir se o ultimo alvo foi publicado (estado/disparos.log).'])
               for r in esperando[:-1]:
                   print(f"  duplicada em espera: cancelando {r['databaseId']}")
                   subprocess.run(['gh', 'run', 'cancel', str(r['databaseId'])])

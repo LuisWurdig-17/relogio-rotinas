@@ -118,10 +118,22 @@ def registra(linha):
     for c in cmds:
         if subprocess.run(c, capture_output=True, text=True).returncode != 0: diz('  registro nao gravado'); return
 
+def avisa(titulo, corpo):
+    """Abre um chamado no proprio repositorio, atribuido ao dono: e o que faz o GitHub mandar e-mail.
+    (Rodada em corrente tem o robo como autor, entao a falha da rodada sozinha nao avisa ninguem.)"""
+    diz('::error::' + titulo)
+    if SIMULA: return
+    dono = os.environ.get('GITHUB_REPOSITORY_OWNER', '')
+    corpo += f"\n\nRodada: {os.environ.get('GITHUB_SERVER_URL', '')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}\n@{dono}"
+    if not roda(['gh', 'issue', 'create', '--title', titulo, '--body', corpo, '--assignee', dono], tentativas=2, pausa=10):
+        roda(['gh', 'issue', 'create', '--title', titulo, '--body', corpo], tentativas=2, pausa=10)
+
 def main():
     n = agora(); falhou = False; atraso = 0
     alvo = dt.datetime.fromisoformat(ALVO_IN).replace(tzinfo=UTC) if ALVO_IN else None
     diz(f'elo iniciado: motivo {MOTIVO}, alvo recebido {alvo:%d/%m %H:%MZ}' if alvo else f'elo iniciado: motivo {MOTIVO}, sem alvo')
+    if MOTIVO == 'teste-aviso':
+        avisa('Teste do aviso do relogio', 'Teste: se este e-mail chegou, o aviso de falha do relogio esta funcionando. Nada a fazer.'); return 0
     if MOTIVO == 'inicio' or alvo is None:
         # corrente nova ou religada: se o ultimo alvo ficou sem versao, dispara ja; depois segue para o proximo
         u = ultimo(n)
@@ -147,7 +159,8 @@ def main():
         if SIMULA or publicado(alvo):
             registra(f'{agora():%Y-%m-%dT%H:%M:%SZ} alvo {alvo:%Y-%m-%dT%H:%M}Z publicado (conferencia {volta})' + (f', DISPARO ATRASADO {atraso:.0f} min' if atraso else ''))
             if atraso > 3 and not SIMULA:      # publicou, mas fora da hora: a rodada falha de proposito para o GitHub avisar por e-mail
-                diz(f'::error::O painel foi publicado, mas o disparo saiu {atraso:.0f} min depois do alvo. Conferir as esperas do relogio.'); return 1
+                avisa(f'Disparo atrasado {atraso:.0f} min no alvo {alvo:%d/%m %H:%M} UTC',
+                      'A rotina publicou, mas o disparo saiu depois da hora. Conferir as esperas do relogio.'); return 1
             return 0
         diz(f'  conferencia {volta}: o painel ainda nao tem versao do alvo; empurrando de novo')
         empurra(f'repeticao do alvo {alvo:%d/%m %H:%M}Z, corrente {CADEIA}')
@@ -155,7 +168,8 @@ def main():
     if publicado(alvo):
         registra(f'{agora():%Y-%m-%dT%H:%M:%SZ} alvo {alvo:%Y-%m-%dT%H:%M}Z publicado (na repeticao)'); return 0
     registra(f'{agora():%Y-%m-%dT%H:%M:%SZ} alvo {alvo:%Y-%m-%dT%H:%M}Z NAO PUBLICADO')
-    diz('::error::O painel nao foi publicado no alvo depois de 3 disparos. Conferir a rotina.')
+    avisa(f'NAO PUBLICADO no alvo {alvo:%d/%m %H:%M} UTC',
+          'Depois de 3 disparos a versao no ar nao passou do alvo. Conferir a rotina de destino e publicar por outro caminho.')
     return 1
 
 if __name__ == '__main__':
